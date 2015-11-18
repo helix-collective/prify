@@ -35,8 +35,8 @@ fi
 REMOTE_BASE=${REMOTE_BRANCH}-base
 
 # Push branch and base
-git push -f origin HEAD:refs/heads/$REMOTE_BRANCH
-git push -f origin $(git show -s --format=%H HEAD~1):refs/heads/$REMOTE_BASE
+git push -f origin HEAD:refs/heads/$REMOTE_BRANCH > /dev/null
+git push -f origin $(git show -s --format=%H HEAD~1):refs/heads/$REMOTE_BASE > /dev/null
 
 # Create new PR Existing PR
 if [ "$CREATE_PR" = "yes" ]; then
@@ -44,7 +44,6 @@ if [ "$CREATE_PR" = "yes" ]; then
   BODY=${MSG//$'\n'/\\n}
   ENDPOINT=$(git config --get remote.origin.url | sed 's/.*://' | sed 's/.git$//')
 
-  curl -X POST -H 'Authorization: token 9234dd785e82b69cf52dd46ba5a0900c4cc19a65' \
   curl -s -S -X POST -H "Authorization: token $TOKEN" \
       -H 'Content-Type: application/json' \
       -d "{\"title\": \"$TITLE\", 
@@ -53,7 +52,7 @@ if [ "$CREATE_PR" = "yes" ]; then
            \"body\": \"$BODY\"}" \
       https://api.github.com/repos/$ENDPOINT/pulls > /dev/null
 
-  if [ $? ]; then
+  if [ "$?" != "0" ]; then
     echo "Failed to create pull request"
   fi
 fi
