@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Create a new named branch for the current HEAD on the remote, Need
+# to run this on commits before a PR can be pushed up
+
+TITLE=$(git show -s --format=%s | sed 's/[[:space:]]/-/g' | tr 'A-Z' 'a-z')
+git push -f origin HEAD:refs/heads/$USER/$TITLE
