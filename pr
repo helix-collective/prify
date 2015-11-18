@@ -17,24 +17,30 @@ if [ "$TOKEN" = "" ]; then
   exit
 fi
 
-MSG=$(git show -s --format=%B)
-TITLE=$(git show -s --format=%s)
-REMOTE_BRANCH=$(echo $MSG | grep 'GH-PR-BRANCH:' | sed s'/.*GH-PR-BRANCH: *\(.*\)/\1/')
+# Get remote branch for current HEAD, and HEAD~1
+function get-branch() {
+  CURRENT_REF=$(git show -s --format=%H $1)
+  git for-each-ref 'refs/remotes/origin/' \
+    | grep -v 'HEAD' | grep "$CURRENT_REF" | cut -f2 \
+    | sed 's@refs/remotes/origin/@@' | head -n 1
+}
 
-# No branch, create one and update commit
-if [ "$REMOTE_BRANCH" = "" ]; then
-  REMOTE_BRANCH=$USER/$RANDOM
-  AMENDED_MSG="$MSG
+HEAD=$(get-branch HEAD)
+BASE=$(get-branch HEAD~1)
 
-GH-PR-BRANCH: $REMOTE_BRANCH"
-  git commit --amend -m "$AMENDED_MSG"
+# If a remote for head doesn't exists, create one
+if [ "$HEAD" = "" ]; then
+  HEAD=$(git show -s --format=%s | sed 's/[[:space:]]/-/g' | tr 'A-Z' 'a-z')
 fi
 
-REMOTE_BASE=${REMOTE_BRANCH}-base
+# If a remote for base doesn't exists, it's an error
+if [ "$BASE" = "" ]; then
+  echo "No remote for base $(git show -s --format=%H HEAD~1). Checkout ref and run $(dirname $0)/mk-branch to create one"
+  exit 1
+fi
 
-# Push branch and base
-git push -f origin HEAD:refs/heads/$REMOTE_BRANCH > /dev/null
-git push -f origin $(git show -s --format=%H HEAD~1):refs/heads/$REMOTE_BASE > /dev/null
+# force push head
+git push -f origin HEAD:refs/heads/$HEAD > /dev/null
 
 # Crazy '//' syntax is bash ANSI-C quoting http://stackoverflow.com/a/7218905
 BODY=${MSG//$'\n'/\\n}
@@ -45,7 +51,7 @@ ENDPOINT=$(git config --get remote.origin.url | sed 's/.*://' | sed 's/.git$//')
 curl -s -S -X POST -H "Authorization: token $TOKEN" \
     -H 'Content-Type: application/json' \
     -d "{\"title\": \"$TITLE\", 
-         \"head\": \"$REMOTE_BRANCH\", 
-         \"base\": \"$REMOTE_BASE\", 
+         \"head\": \"$HEAD\", 
+         \"base\": \"$BASE\", 
          \"body\": \"$BODY\"}" \
     https://api.github.com/repos/$ENDPOINT/pulls > /dev/null
