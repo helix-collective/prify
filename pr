@@ -30,11 +30,13 @@ git push -f origin $(git show -s --format=%H HEAD~1):refs/heads/$REMOTE_BASE
 if [ "$CREATE_PR" = "yes" ]; then
   # Crazy '//' syntax is bash ANSI-C quoting http://stackoverflow.com/a/7218905
   BODY=${MSG//$'\n'/\\n}
+  ENDPOINT=$(git config --get remote.origin.url | sed 's/.*://' | sed 's/.git$//')
+
   curl -X POST -H 'Authorization: token 9234dd785e82b69cf52dd46ba5a0900c4cc19a65' \
       -H 'Content-Type: application/json' \
       -d "{\"title\": \"$TITLE\", 
            \"head\": \"$REMOTE_BRANCH\", 
            \"base\": \"$REMOTE_BASE\", 
            \"body\": \"$BODY\"}" \
-      https://api.github.com/repos/helix-collective/post-commit-pr/pulls > /dev/null
+      https://api.github.com/repos/$ENDPOINT/pulls > /dev/null
 fi
