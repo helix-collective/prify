@@ -28,8 +28,6 @@ if [ "$REMOTE_BRANCH" = "" ]; then
 
 GH-PR-BRANCH: $REMOTE_BRANCH"
   git commit --amend -m "$AMENDED_MSG"
-
-  CREATE_PR="yes"
 fi
 
 REMOTE_BASE=${REMOTE_BRANCH}-base
@@ -38,21 +36,16 @@ REMOTE_BASE=${REMOTE_BRANCH}-base
 git push -f origin HEAD:refs/heads/$REMOTE_BRANCH > /dev/null
 git push -f origin $(git show -s --format=%H HEAD~1):refs/heads/$REMOTE_BASE > /dev/null
 
-# Create new PR Existing PR
-if [ "$CREATE_PR" = "yes" ]; then
-  # Crazy '//' syntax is bash ANSI-C quoting http://stackoverflow.com/a/7218905
-  BODY=${MSG//$'\n'/\\n}
-  ENDPOINT=$(git config --get remote.origin.url | sed 's/.*://' | sed 's/.git$//')
+# Crazy '//' syntax is bash ANSI-C quoting http://stackoverflow.com/a/7218905
+BODY=${MSG//$'\n'/\\n}
+ENDPOINT=$(git config --get remote.origin.url | sed 's/.*://' | sed 's/.git$//')
 
-  curl -s -S -X POST -H "Authorization: token $TOKEN" \
-      -H 'Content-Type: application/json' \
-      -d "{\"title\": \"$TITLE\", 
-           \"head\": \"$REMOTE_BRANCH\", 
-           \"base\": \"$REMOTE_BASE\", 
-           \"body\": \"$BODY\"}" \
-      https://api.github.com/repos/$ENDPOINT/pulls > /dev/null
-
-  if [ "$?" != "0" ]; then
-    echo "Failed to create pull request"
-  fi
-fi
+# Create a new PR, if one already exists for the above branch, this will simply fail
+# which is fine for us
+curl -s -S -X POST -H "Authorization: token $TOKEN" \
+    -H 'Content-Type: application/json' \
+    -d "{\"title\": \"$TITLE\", 
+         \"head\": \"$REMOTE_BRANCH\", 
+         \"base\": \"$REMOTE_BASE\", 
+         \"body\": \"$BODY\"}" \
+    https://api.github.com/repos/$ENDPOINT/pulls > /dev/null
