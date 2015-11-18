@@ -4,21 +4,37 @@
 #curl -i -u <your_username> -d '{"scopes": ["repo", "user"], "note": "getting-started"}' \
 #    https://api.github.com/authorizations
 
-#MSG=$(git show -s --format=%B | grep 'PR-ID:')
-#
-## New PR
-#if [ "$MSG" = "" ]; then
-#fi
 
+MSG=$(git show -s --format=%B)
+TITLE=$(git show -s --format=%s)
+REMOTE_BRANCH=$(echo $MSG | grep 'GH-PR-BRANCH:' | sed s'/.*GH-PR-BRANCH: *\(.*\)/\1/')
 
-# Update Existing PR
+# No branch, create one and update commit
+if [ "$REMOTE_BRANCH" = "" ]; then
+  REMOTE_BRANCH=$USER/$RANDOM
+  AMENDED_MSG="$MSG
 
-#arc diff --allow-untracked --cc '#bombd_devs' --verbatim --browse --reviewers "$*" HEAD^
+GH-PR-BRANCH: $REMOTE_BRANCH"
+  git commit --amend -m "$AMENDED_MSG"
 
-REMOTE_BRANCH=$USER/$RANDOM
-git push -f origin HEAD:$REMOTE_BRANCH
-git push -f origin HEAD:${REMOTE_BRANCH}_base
-git push -f origin $(git show -s --format=%H HEAD~1):${REMOTE_BRANCH}_base
+  CREATE_PR="yes"
+fi
 
-#curl -X POST -H 'Authorization: token 8abc18a7fca4306fe2b5ca247925cb0c75130c0c' -H 'Content-Type: application/json' -d "{\"title\": \"testing\", \"head\": \"$REMOTE_BRANCH\", \"base\": \"${REMOTE_BRANCH}_base\", \"body\": \"testing\"}"  https://api.github.com/repos/bombdapp/bombd-parse-cloudcode/pulls
+REMOTE_BASE=${REMOTE_BRANCH}-base
 
+# Push branch and base
+git push -f origin HEAD:refs/heads/$REMOTE_BRANCH
+git push -f origin $(git show -s --format=%H HEAD~1):refs/heads/$REMOTE_BASE
+
+# Create new PR Existing PR
+if [ "$CREATE_PR" = "yes" ]; then
+  # Crazy '//' syntax is bash ANSI-C quoting http://stackoverflow.com/a/7218905
+  BODY=${MSG//$'\n'/\\n}
+  curl -X POST -H 'Authorization: token 9234dd785e82b69cf52dd46ba5a0900c4cc19a65' \
+      -H 'Content-Type: application/json' \
+      -d "{\"title\": \"$TITLE\", 
+           \"head\": \"$REMOTE_BRANCH\", 
+           \"base\": \"$REMOTE_BASE\", 
+           \"body\": \"$BODY\"}" \
+      https://api.github.com/repos/helix-collective/post-commit-pr/pulls > /dev/null
+fi
