@@ -1,9 +1,21 @@
 #!/bin/bash
 
 # Generate a token, if one doesn't exists
-#curl -i -u <your_username> -d '{"scopes": ["repo", "user"], "note": "getting-started"}' \
-#    https://api.github.com/authorizations
+TOKEN_FILE=$(dirname $0)/.github-access-token
+TOKEN=$(cat $TOKEN_FILE 2> /dev/null)
 
+if [ "$TOKEN" = "" ]; then
+  echo -n "github username: "
+  read GITHUB_USERNAME
+  curl -u $GITHUB_USERNAME -d "{\"scopes\": [\"repo\", \"public_repo\"], \"note\": \"post-commit-pr-$RANDOM\"}" \
+    https://api.github.com/authorizations  | grep '"token":' | sed 's/.*: "//' | sed 's/",$//' > $TOKEN_FILE
+fi
+
+TOKEN=$(cat $TOKEN_FILE 2> /dev/null)
+if [ "$TOKEN" = "" ]; then
+  echo "Couldn't get github access token, something went wrong"
+  exit
+fi
 
 MSG=$(git show -s --format=%B)
 TITLE=$(git show -s --format=%s)
@@ -33,10 +45,15 @@ if [ "$CREATE_PR" = "yes" ]; then
   ENDPOINT=$(git config --get remote.origin.url | sed 's/.*://' | sed 's/.git$//')
 
   curl -X POST -H 'Authorization: token 9234dd785e82b69cf52dd46ba5a0900c4cc19a65' \
+  curl -s -S -X POST -H "Authorization: token $TOKEN" \
       -H 'Content-Type: application/json' \
       -d "{\"title\": \"$TITLE\", 
            \"head\": \"$REMOTE_BRANCH\", 
            \"base\": \"$REMOTE_BASE\", 
            \"body\": \"$BODY\"}" \
       https://api.github.com/repos/$ENDPOINT/pulls > /dev/null
+
+  if [ $? ]; then
+    echo "Failed to create pull request"
+  fi
 fi
