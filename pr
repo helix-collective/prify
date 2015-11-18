@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Generate a token, if one doesn't exists
+#curl -i -u <your_username> -d '{"scopes": ["repo", "user"], "note": "getting-started"}' \
+#    https://api.github.com/authorizations
+
+#MSG=$(git show -s --format=%B | grep 'PR-ID:')
+#
+## New PR
+#if [ "$MSG" = "" ]; then
+#fi
+
+
+# Update Existing PR
+
+#arc diff --allow-untracked --cc '#bombd_devs' --verbatim --browse --reviewers "$*" HEAD^
+
+REMOTE_BRANCH=$USER/$RANDOM
+git push -f origin HEAD:$REMOTE_BRANCH
+git push -f origin HEAD:${REMOTE_BRANCH}_base
+git push -f origin $(git show -s --format=%H HEAD~1):${REMOTE_BRANCH}_base
+
+#curl -X POST -H 'Authorization: token 8abc18a7fca4306fe2b5ca247925cb0c75130c0c' -H 'Content-Type: application/json' -d "{\"title\": \"testing\", \"head\": \"$REMOTE_BRANCH\", \"base\": \"${REMOTE_BRANCH}_base\", \"body\": \"testing\"}"  https://api.github.com/repos/bombdapp/bombd-parse-cloudcode/pulls
+
